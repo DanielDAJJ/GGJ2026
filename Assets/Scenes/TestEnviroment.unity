@@ -351,7 +351,7 @@ GameObject:
   - component: {fileID: 870793456}
   - component: {fileID: 870793455}
   - component: {fileID: 870793454}
-  m_Layer: 6
+  m_Layer: 7
   m_Name: Ground (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -641,7 +641,7 @@ Transform:
   m_GameObject: {fileID: 1105713373}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.85, z: 0}
+  m_LocalPosition: {x: 0, y: -0.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -818,21 +818,24 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 795346e1019042348a56971be28ca938, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Entity
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   health: 10
   maxHealth: 10
   moveSpeed: 5
   dashforce: 5
-  dashCooldown: 0
-  jumpForce: 0
-  force: 0
+  dashCooldown: 2
+  jumpForce: 7
+  force: 10
   groundCheck: {fileID: 1105713374}
   wallCheck: {fileID: 1755520916}
   wallCheckSize: {x: 0.5, y: 0}
   groundLayer:
     serializedVersion: 2
-    m_Bits: 64
-  groundCheckRadius: 0.2
+    m_Bits: 0
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  groundCheckRadius: 0.3
   horizontalInput: 0
   verticalInput: 0
   jumpInput: 0
@@ -885,7 +888,7 @@ GameObject:
   - component: {fileID: 2026716614}
   - component: {fileID: 2026716613}
   - component: {fileID: 2026716612}
-  m_Layer: 6
+  m_Layer: 7
   m_Name: Ground (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
