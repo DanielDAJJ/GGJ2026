@@ -1,6 +1,7 @@
 using System.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
@@ -27,6 +28,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isAlive = true;
     [SerializeField] private bool isGrounded;
     [SerializeField] private bool isTouchingWall;
+    [SerializeField] private bool isTouchingObstacle;
     [SerializeField] private bool isDashing = false;
     [SerializeField] private bool canDash = true;
     [SerializeField] private bool isHanging;
@@ -36,6 +38,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private maskStates currentMask = maskStates.none;
     [Header("-----------------------References")]
     [SerializeField] private LayerMask lianaLayer;
+    [SerializeField] private LayerMask obstaclesLayer;
     [SerializeField] private Transform currentLiana;
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private LayerMask wallLayer;
@@ -48,8 +51,10 @@ public class PlayerController : MonoBehaviour
         lianaLayer = LayerMask.GetMask("Liana");
         groundLayer = LayerMask.GetMask("Ground");
         wallLayer = LayerMask.GetMask("Wall");
+        obstaclesLayer = LayerMask.GetMask("Obstacles");
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        
     }
 
     void Start()
@@ -89,15 +94,21 @@ public class PlayerController : MonoBehaviour
         {
             StartCoroutine(DashCoroutine());
         }
+        if(currentMask == maskStates.rhino && Input.GetKeyDown(KeyCode.E))
+        {
+            SmashObstacle();
+        }
+        ChangeMask();
     }
     void FixedUpdate()
     {
         if(isDashing) return;
         PlayerIsGrounded();
         PlayerIsTounchingWall();
+        PlayerIsTouchingObstacle();
         if (isHanging)
         {
-            HangingOnLina();
+            HangingOnLiana();
         }
         else if(currentMask == maskStates.monkey && isTouchingWall)
         {
@@ -142,6 +153,18 @@ public class PlayerController : MonoBehaviour
     {
         isTouchingWall = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, wallLayer);
     }
+    public void PlayerIsTouchingObstacle()
+    {
+        isTouchingObstacle = Physics2D.OverlapBox(wallCheck.position, wallCheckSize, 0f, obstaclesLayer);
+    }
+    public void SmashObstacle()
+    {
+        Collider2D[] obstacles = Physics2D.OverlapBoxAll(wallCheck.position, wallCheckSize, 0f, obstaclesLayer);
+        foreach(Collider2D obstacle in obstacles)
+        {
+            Destroy(obstacle.gameObject);
+        }
+    }
     public void MovePlayer(float horizontalInput)
     {
         if (wallJumpTime <= 0)
@@ -184,7 +207,7 @@ public class PlayerController : MonoBehaviour
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         }
     }
-    public void HangingOnLina()
+    public void HangingOnLiana()
     {
         if(isHanging && currentLiana != null)
         {
@@ -198,6 +221,22 @@ public class PlayerController : MonoBehaviour
                 float targetx = currentLiana.position.x + (horizontalInput * offset);
                 transform.position = new Vector2(targetx, transform.position.y);
             }
+        }
+    }
+    public void ChangeMask()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            currentMask = maskStates.none;
+        } else if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            currentMask = maskStates.monkey;
+        } else if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            currentMask = maskStates.leopard;
+        } else if (Input.GetKeyDown(KeyCode.Alpha4))
+        {
+            currentMask = maskStates.rhino;
         }
     }
     public IEnumerator DashCoroutine()
