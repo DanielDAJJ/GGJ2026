@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Liana
   - Obstacle
+  - DamageObstacle
   layers:
   - Default
   - TransparentFX

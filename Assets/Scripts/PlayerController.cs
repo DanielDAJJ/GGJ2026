@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -8,8 +9,8 @@ public class PlayerController : MonoBehaviour
     
     [Header("Player Settings")]
     [Header("-----------------------Stats")]
-    [SerializeField] private float health = 10f;
-    [SerializeField] private float maxHealth = 10f;
+    [SerializeField] private float health = 2f;
+    [SerializeField] private float maxHealth = 2f;
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float dashforce = 15f;
     [SerializeField] private float dashCooldown = 1.5f;
@@ -24,6 +25,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float extraJumps = 1f;
     [SerializeField] private float reamingJumps;
     [SerializeField] private float wallJumpTime;
+    [SerializeField] private float invulnerableTime = 1.5f;
     [Header("-----------------------States")]
     [SerializeField] private bool isAlive = true;
     [SerializeField] private bool isGrounded;
@@ -32,6 +34,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isDashing = false;
     [SerializeField] private bool canDash = true;
     [SerializeField] private bool isHanging;
+    [SerializeField] private bool isInvulnerable = false;
+
     
 
     public enum maskStates {none, monkey, leopard, rhino}
@@ -53,13 +57,12 @@ public class PlayerController : MonoBehaviour
         wallLayer = LayerMask.GetMask("Wall");
         obstaclesLayer = LayerMask.GetMask("Obstacles");
         rb = GetComponent<Rigidbody2D>();
-        anim = GetComponent<Animator>();
-        
+        anim = GetComponentInChildren<Animator>();
     }
 
     void Start()
     {
-        
+        anim.SetBool("IsAlive", isAlive);
     }
 
     // Update is called once per frame
@@ -87,6 +90,7 @@ public class PlayerController : MonoBehaviour
             } else if(currentMask == maskStates.monkey && reamingJumps > 0)
             {
                 Jump();
+                anim.SetTrigger("DoublleJumpTrigger");
                 reamingJumps--;
             }
         }
@@ -102,10 +106,16 @@ public class PlayerController : MonoBehaviour
     }
     void FixedUpdate()
     {
-        if(isDashing) return;
+        if(!isAlive || isDashing) return;
         PlayerIsGrounded();
         PlayerIsTounchingWall();
         PlayerIsTouchingObstacle();
+        bool climbing = isHanging || (currentMask == maskStates.monkey && isTouchingWall && !isGrounded);
+        float climbingSpeed = isHanging || (currentMask == maskStates.monkey && isTouchingWall) ? Mathf.Abs(verticalInput): 0f;
+        anim.SetFloat("ClimbingSpeed", climbingSpeed);
+        anim.SetBool("IsClimbing", climbing);
+        anim.SetBool("IsGrounded", isGrounded);
+        anim.SetFloat("VerticalVelocity", rb.linearVelocity.y);
         if (isHanging)
         {
             HangingOnLiana();
@@ -113,12 +123,13 @@ public class PlayerController : MonoBehaviour
         else if(currentMask == maskStates.monkey && isTouchingWall)
         {
             ClimbWall();
-        }
+        } 
         else
         {
             rb.gravityScale = 1f;
             MovePlayer(horizontalInput);
         }
+        
     }
     private void OnDrawGizmos()
     {
@@ -135,6 +146,10 @@ public class PlayerController : MonoBehaviour
             rb.linearVelocity = Vector2.zero;
             rb.gravityScale = 0f;
         }
+        if (collision.CompareTag("DamageObstacle") && !isInvulnerable)
+        {
+            TakeDamage(1f);
+        }
     }
     private void OnTriggerExit2D(Collider2D collision)
     {
@@ -143,6 +158,13 @@ public class PlayerController : MonoBehaviour
             isHanging = false;
             currentLiana = null;
             rb.gravityScale = 1f;
+        }
+    }
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if(collision.gameObject.CompareTag("DamageObstacle") && !isInvulnerable)
+        {
+            TakeDamage(1f);
         }
     }
     public void PlayerIsGrounded()
@@ -159,6 +181,7 @@ public class PlayerController : MonoBehaviour
     }
     public void SmashObstacle()
     {
+        anim.SetTrigger("RhinoSmash");
         Collider2D[] obstacles = Physics2D.OverlapBoxAll(wallCheck.position, wallCheckSize, 0f, obstaclesLayer);
         foreach(Collider2D obstacle in obstacles)
         {
@@ -179,6 +202,7 @@ public class PlayerController : MonoBehaviour
         {
             wallJumpTime -= Time.deltaTime; 
         }
+        anim.SetFloat("Speed", Mathf.Abs(horizontalInput));
     }
     public void ClimbWall()
     {
@@ -228,29 +252,63 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             currentMask = maskStates.none;
+            anim.SetInteger("MaskIndex", (int)currentMask);
         } else if (Input.GetKeyDown(KeyCode.Alpha2))
         {
             currentMask = maskStates.monkey;
+            anim.SetInteger("MaskIndex", (int)currentMask);
         } else if (Input.GetKeyDown(KeyCode.Alpha3))
         {
             currentMask = maskStates.leopard;
+            anim.SetInteger("MaskIndex", (int)currentMask);
         } else if (Input.GetKeyDown(KeyCode.Alpha4))
         {
             currentMask = maskStates.rhino;
+            anim.SetInteger("MaskIndex", (int)currentMask);
+        }
+    }
+    public void Dead()
+    {
+        isAlive = false;
+        anim.SetBool("IsAlive", isAlive);
+        rb.linearVelocity = Vector2.zero;
+        rb.gravityScale = 0f;
+    }
+    public void TakeDamage(float damage)
+    {
+        if(!isAlive || isInvulnerable) return;
+        health -= damage;
+        anim.SetTrigger("Hit");
+        if (health <= 0f)
+        {
+            Dead();
+        }
+        else
+        {
+            StartCoroutine(InvulnerabilityCoroutine());
         }
     }
     public IEnumerator DashCoroutine()
     {
         canDash = false;
         isDashing = true;
+        anim.SetBool("IsDashingAnim", isDashing);
+        anim.SetTrigger("DashTrigger");
         float originalGravity = rb.gravityScale;
         rb.gravityScale = 0f;
         float dPosition = transform.localScale.x * dashforce;
         rb.linearVelocity = new Vector2(dPosition, 0f);
         yield return new WaitForSeconds(0.25f);
         isDashing = false;
+        anim.SetBool("IsDashingAnim", isDashing);
         rb.gravityScale = originalGravity;
         yield return new WaitForSeconds(dashCooldown);
         canDash = true;
     } 
+    public IEnumerator InvulnerabilityCoroutine()
+    {
+        isInvulnerable = true;
+        yield return new WaitForSeconds(invulnerableTime);
+        isInvulnerable = false;
+    }
 }
